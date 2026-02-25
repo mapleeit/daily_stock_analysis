@@ -374,40 +374,45 @@ def run_full_analysis(
         logger.info("\n任务执行完成")
 
         # === 新增：生成飞书云文档 ===
-        try:
-            from src.feishu_doc import FeishuDocManager
+        # 未配置飞书时跳过导入 SDK，避免额外启动开销和第三方告警噪音。
+        feishu_doc_configured = bool(
+            config.feishu_app_id and config.feishu_app_secret and config.feishu_folder_token
+        )
+        if feishu_doc_configured and (results or market_report):
+            try:
+                from src.feishu_doc import FeishuDocManager
 
-            feishu_doc = FeishuDocManager()
-            if feishu_doc.is_configured() and (results or market_report):
-                logger.info("正在创建飞书云文档...")
+                feishu_doc = FeishuDocManager()
+                if feishu_doc.is_configured():
+                    logger.info("正在创建飞书云文档...")
 
-                # 1. 准备标题 "01-01 13:01大盘复盘"
-                tz_cn = timezone(timedelta(hours=8))
-                now = datetime.now(tz_cn)
-                doc_title = f"{now.strftime('%Y-%m-%d %H:%M')} 大盘复盘"
+                    # 1. 准备标题 "01-01 13:01大盘复盘"
+                    tz_cn = timezone(timedelta(hours=8))
+                    now = datetime.now(tz_cn)
+                    doc_title = f"{now.strftime('%Y-%m-%d %H:%M')} 大盘复盘"
 
-                # 2. 准备内容 (拼接个股分析和大盘复盘)
-                full_content = ""
+                    # 2. 准备内容 (拼接个股分析和大盘复盘)
+                    full_content = ""
 
-                # 添加大盘复盘内容（如果有）
-                if market_report:
-                    full_content += f"# 📈 大盘复盘\n\n{market_report}\n\n---\n\n"
+                    # 添加大盘复盘内容（如果有）
+                    if market_report:
+                        full_content += f"# 📈 大盘复盘\n\n{market_report}\n\n---\n\n"
 
-                # 添加个股决策仪表盘（使用 NotificationService 生成）
-                if results:
-                    dashboard_content = pipeline.notifier.generate_dashboard_report(results)
-                    full_content += f"# 🚀 个股决策仪表盘\n\n{dashboard_content}"
+                    # 添加个股决策仪表盘（使用 NotificationService 生成）
+                    if results:
+                        dashboard_content = pipeline.notifier.generate_dashboard_report(results)
+                        full_content += f"# 🚀 个股决策仪表盘\n\n{dashboard_content}"
 
-                # 3. 创建文档
-                doc_url = feishu_doc.create_daily_doc(doc_title, full_content)
-                if doc_url:
-                    logger.info(f"飞书云文档创建成功: {doc_url}")
-                    # 可选：将文档链接也推送到群里
-                    if not args.no_notify:
-                        pipeline.notifier.send(f"[{now.strftime('%Y-%m-%d %H:%M')}] 复盘文档创建成功: {doc_url}")
+                    # 3. 创建文档
+                    doc_url = feishu_doc.create_daily_doc(doc_title, full_content)
+                    if doc_url:
+                        logger.info(f"飞书云文档创建成功: {doc_url}")
+                        # 可选：将文档链接也推送到群里
+                        if not args.no_notify:
+                            pipeline.notifier.send(f"[{now.strftime('%Y-%m-%d %H:%M')}] 复盘文档创建成功: {doc_url}")
 
-        except Exception as e:
-            logger.error(f"飞书文档生成失败: {e}")
+            except Exception as e:
+                logger.error(f"飞书文档生成失败: {e}")
 
         # === Auto backtest ===
         try:

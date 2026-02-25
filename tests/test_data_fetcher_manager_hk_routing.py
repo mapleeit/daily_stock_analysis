@@ -68,6 +68,19 @@ class _StubRealtimeFetcher:
         return None
 
 
+class _StubNamedRealtimeFetcher:
+    """通用实时行情 fetcher stub（支持任意 name）。"""
+
+    def __init__(self, name, priority):
+        self.name = name
+        self.priority = priority
+        self.calls = []
+
+    def get_realtime_quote(self, *args, **kwargs):
+        self.calls.append((args, kwargs))
+        return None
+
+
 class TestHKDailyRouting(unittest.TestCase):
     def test_hk_daily_route_skips_non_hk_fetchers(self):
         """港股日线应仅尝试 Akshare/Yfinance，不应尝试 efinance/pytdx。"""
@@ -159,6 +172,29 @@ class TestHKRealtimeDedup(unittest.TestCase):
         self.assertIsNone(quote)
         self.assertEqual(len(realtime_fetcher.calls), 1)
         self.assertEqual(realtime_fetcher.calls[0][0], "HK09988")
+
+    def test_hk_realtime_skips_unsupported_sources(self):
+        """
+        港股实时行情应跳过不支持港股的 source（如 efinance/tushare）。
+        """
+        from data_provider.base import DataFetcherManager
+
+        import src.config as app_config
+
+        akshare_fetcher = _StubRealtimeFetcher()
+        efinance_fetcher = _StubNamedRealtimeFetcher(name="EfinanceFetcher", priority=0)
+        manager = DataFetcherManager(fetchers=[efinance_fetcher, akshare_fetcher])
+
+        with patch.object(app_config, 'get_config', return_value=SimpleNamespace(
+            enable_realtime_quote=True,
+            realtime_source_priority="efinance,tencent",
+        )):
+            quote = manager.get_realtime_quote("HK00700")
+
+        self.assertIsNone(quote)
+        self.assertEqual(len(efinance_fetcher.calls), 0)
+        self.assertEqual(len(akshare_fetcher.calls), 1)
+        self.assertEqual(akshare_fetcher.calls[0], ("HK00700", "tencent"))
 
 
 class _DummyBreaker:
