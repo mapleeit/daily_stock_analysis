@@ -88,6 +88,9 @@ class Config:
     tavily_api_keys: List[str] = field(default_factory=list)  # Tavily API Keys
     brave_api_keys: List[str] = field(default_factory=list)  # Brave Search API Keys
     serpapi_keys: List[str] = field(default_factory=list)  # SerpAPI Keys
+    perplexity_api_keys: List[str] = field(default_factory=list)  # Perplexity API Keys
+    perplexity_base_url: str = "https://openrouter.ai/api/v1"  # Perplexity/OpenRouter base URL
+    perplexity_model: str = "perplexity/sonar-pro-search"  # Perplexity model name
 
     # === 新闻与分析筛选配置 ===
     news_max_age_days: int = 3   # 新闻最大时效（天）
@@ -371,6 +374,11 @@ class Config:
         brave_keys_str = os.getenv('BRAVE_API_KEYS', '')
         brave_api_keys = [k.strip() for k in brave_keys_str.split(',') if k.strip()]
 
+        perplexity_keys_str = os.getenv('PERPLEXITY_API_KEYS', '')
+        perplexity_api_keys = [k.strip() for k in perplexity_keys_str.split(',') if k.strip()]
+        perplexity_base_url = os.getenv('PERPLEXITY_BASE_URL', 'https://openrouter.ai/api/v1').strip()
+        perplexity_model = os.getenv('PERPLEXITY_MODEL', 'perplexity/sonar-pro-search').strip()
+
         # 企微消息类型与最大字节数逻辑
         wechat_msg_type = os.getenv('WECHAT_MSG_TYPE', 'markdown')
         wechat_msg_type_lower = wechat_msg_type.lower()
@@ -415,6 +423,9 @@ class Config:
             tavily_api_keys=tavily_api_keys,
             brave_api_keys=brave_api_keys,
             serpapi_keys=serpapi_keys,
+            perplexity_api_keys=perplexity_api_keys,
+            perplexity_base_url=perplexity_base_url or 'https://openrouter.ai/api/v1',
+            perplexity_model=perplexity_model or 'perplexity/sonar-pro-search',
             news_max_age_days=max(1, int(os.getenv('NEWS_MAX_AGE_DAYS', '3'))),
             bias_threshold=max(1.0, float(os.getenv('BIAS_THRESHOLD', '5.0'))),
             agent_mode=os.getenv('AGENT_MODE', 'false').lower() == 'true',
@@ -647,8 +658,14 @@ class Config:
         elif not self.gemini_api_key and not self.anthropic_api_key:
             warnings.append("提示：未配置 Gemini/Anthropic API Key，将使用 OpenAI 兼容 API")
         
-        if not self.bocha_api_keys and not self.tavily_api_keys and not self.brave_api_keys and not self.serpapi_keys:
-            warnings.append("提示：未配置搜索引擎 API Key (Bocha/Tavily/Brave/SerpAPI)，新闻搜索功能将不可用")
+        if (
+            not self.bocha_api_keys
+            and not self.tavily_api_keys
+            and not self.brave_api_keys
+            and not self.serpapi_keys
+            and not self.perplexity_api_keys
+        ):
+            warnings.append("提示：未配置搜索引擎 API Key (Bocha/Tavily/Brave/SerpAPI/Perplexity)，新闻搜索功能将不可用")
         
         # 检查通知配置
         has_notification = (
