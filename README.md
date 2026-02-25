@@ -46,7 +46,7 @@
 |------|------|
 | AI 模型 | [AIHubMix](https://aihubmix.com/?aff=CfMq)、Gemini（免费）、OpenAI 兼容、DeepSeek、通义千问、Claude、Ollama |
 | 行情数据 | AkShare、Tushare、Pytdx、Baostock、YFinance |
-| 新闻搜索 | Tavily、SerpAPI、Bocha、Brave |
+| 新闻搜索 | Perplexity Sonar Pro Search、Tavily、SerpAPI、Bocha、Brave |
 
 > 注：美股历史数据与实时行情统一使用 YFinance，确保复权一致性
 
@@ -132,6 +132,9 @@
 | `SERPAPI_API_KEYS` | [SerpAPI](https://serpapi.com/baidu-search-api?utm_source=github_daily_stock_analysis) 全渠道搜索 | 可选 |
 | `BOCHA_API_KEYS` | [博查搜索](https://open.bocha.cn/) Web Search API（中文搜索优化，支持AI摘要，多个key用逗号分隔） | 可选 |
 | `BRAVE_API_KEYS` | [Brave Search](https://brave.com/search/api/) API（隐私优先，美股优化，多个key用逗号分隔） | 可选 |
+| `PERPLEXITY_API_KEYS` | [Perplexity Sonar Pro Search](https://openrouter.ai/perplexity/sonar-pro-search)（全网实时搜索，可替代 Tavily/SerpAPI/Bocha/Brave） | 可选 |
+| `PERPLEXITY_BASE_URL` | Perplexity/OpenRouter API Base URL（默认 `https://openrouter.ai/api/v1`） | 可选 |
+| `PERPLEXITY_MODEL` | Perplexity 模型名（默认 `perplexity/sonar-pro-search`） | 可选 |
 | `TUSHARE_TOKEN` | [Tushare Pro](https://tushare.pro/weborder/#/login?reg=834638 ) Token | 可选 |
 | `WECHAT_MSG_TYPE` | 企微消息类型，默认 markdown，支持配置 text 类型，发送纯 markdown 文本 | 可选 |
 | `NEWS_MAX_AGE_DAYS` | 新闻最大时效（天），默认 3，避免使用过时信息 | 可选 |

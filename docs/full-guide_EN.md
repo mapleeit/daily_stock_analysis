@@ -102,7 +102,11 @@ Go to your forked repo → `Settings` → `Secrets and variables` → `Actions` 
 | `STOCK_LIST` | Watchlist codes, e.g., `600519,300750,002594` | ✅ |
 | `TAVILY_API_KEYS` | [Tavily](https://tavily.com/) Search API (for news search) | Recommended |
 | `BOCHA_API_KEYS` | [Bocha Search](https://open.bocha.cn/) Web Search API (Chinese search optimized, supports AI summaries, multiple keys comma-separated) | Optional |
+| `BRAVE_API_KEYS` | [Brave Search](https://brave.com/search/api/) API (privacy-focused, US stocks optimized, multiple keys comma-separated) | Optional |
 | `SERPAPI_API_KEYS` | [SerpAPI](https://serpapi.com/baidu-search-api?utm_source=github_daily_stock_analysis) Backup search | Optional |
+| `PERPLEXITY_API_KEYS` | [Perplexity Sonar Pro Search](https://openrouter.ai/perplexity/sonar-pro-search) (real-time web search, can replace Tavily/SerpAPI/Bocha/Brave) | Optional |
+| `PERPLEXITY_BASE_URL` | Perplexity/OpenRouter API base URL (default `https://openrouter.ai/api/v1`) | Optional |
+| `PERPLEXITY_MODEL` | Perplexity model name (default `perplexity/sonar-pro-search`) | Optional |
 | `TUSHARE_TOKEN` | [Tushare Pro](https://tushare.pro/weborder/#/login?reg=834638) Token | Optional |
 
 #### ✅ Minimum Configuration Example
@@ -112,7 +116,7 @@ To get started quickly, you need at minimum:
 1. **AI Model**: `GEMINI_API_KEY` (recommended) or `OPENAI_API_KEY`
 2. **Notification Channel**: At least one, e.g., `WECHAT_WEBHOOK_URL` or `EMAIL_SENDER` + `EMAIL_PASSWORD`
 3. **Stock List**: `STOCK_LIST` (required)
-4. **Search API**: `TAVILY_API_KEYS` (strongly recommended for news search)
+4. **Search API**: `TAVILY_API_KEYS` or `PERPLEXITY_API_KEYS` (strongly recommended for news search)
 
 > Configure these 4 items and you're ready to go!
 
@@ -194,7 +198,11 @@ Default schedule: Every weekday at **18:00 (Beijing Time)** automatic execution.
 |--------|------|:----:|
 | `TAVILY_API_KEYS` | Tavily Search API Key (recommended) | Recommended |
 | `BOCHA_API_KEYS` | Bocha Search API Key (Chinese optimized) | Optional |
+| `BRAVE_API_KEYS` | Brave Search API Key (US stocks optimized) | Optional |
 | `SERPAPI_API_KEYS` | SerpAPI Backup search | Optional |
+| `PERPLEXITY_API_KEYS` | Perplexity Sonar Pro Search API Key (web-wide search) | Optional |
+| `PERPLEXITY_BASE_URL` | Perplexity/OpenRouter API base URL (default `https://openrouter.ai/api/v1`) | Optional |
+| `PERPLEXITY_MODEL` | Perplexity model name (default `perplexity/sonar-pro-search`) | Optional |
 
 ### Data Source Configuration
 

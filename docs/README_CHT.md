@@ -49,7 +49,7 @@
 |------|------|
 | AI 模型 | Gemini（免費）、OpenAI 兼容、DeepSeek、通義千問、Claude、Ollama |
 | 行情數據 | AkShare、Tushare、Pytdx、Baostock、YFinance |
-| 新聞搜索 | Tavily、SerpAPI、Bocha、Brave |
+| 新聞搜索 | Perplexity Sonar Pro Search、Tavily、SerpAPI、Bocha、Brave |
 
 ### 內建交易紀律
 
@@ -122,6 +122,9 @@
 | `BOCHA_API_KEYS` | [博查搜索](https://open.bocha.cn/) Web Search API（中文搜索優化，支持AI摘要，多個key用逗號分隔） | 可選 |
 | `BRAVE_API_KEYS` | [Brave Search](https://brave.com/search/api/) API（隱私優先，美股優化，多個key用逗號分隔） | 可選 |
 | `SERPAPI_API_KEYS` | [SerpAPI](https://serpapi.com/baidu-search-api?utm_source=github_daily_stock_analysis) 備用搜索 | 可選 |
+| `PERPLEXITY_API_KEYS` | [Perplexity Sonar Pro Search](https://openrouter.ai/perplexity/sonar-pro-search)（全網即時搜索，可替代 Tavily/SerpAPI/Bocha/Brave） | 可選 |
+| `PERPLEXITY_BASE_URL` | Perplexity/OpenRouter API Base URL（預設 `https://openrouter.ai/api/v1`） | 可選 |
+| `PERPLEXITY_MODEL` | Perplexity 模型名（預設 `perplexity/sonar-pro-search`） | 可選 |
 | `TUSHARE_TOKEN` | [Tushare Pro](https://tushare.pro/weborder/#/login?reg=834638 ) Token | 可選 |
 | `AGENT_MODE` | 啟用 Agent 策略問股模式（`true`/`false`，預設 `false`） | 可選 |
 | `AGENT_MAX_STEPS` | Agent 最大推理步數（預設 `10`） | 可選 |
