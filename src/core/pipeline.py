@@ -241,13 +241,16 @@ class StockAnalysisPipeline:
             # Step 4: 多维度情报搜索（最新消息+风险排查+业绩预期）
             news_context = None
             if self.search_service.is_available:
-                logger.info(f"[{code}] 开始多维度情报搜索...")
-                
-                # 使用多维度搜索（最多5次搜索）
+                max_intel_searches = 5 if report_type == ReportType.FULL else 3
+                logger.info(
+                    f"[{code}] 开始多维度情报搜索... (报告类型: {report_type.value}, 维度数: {max_intel_searches})"
+                )
+
+                # Simple mode searches fewer intel dimensions for better latency; full mode keeps full coverage.
                 intel_results = self.search_service.search_comprehensive_intel(
                     stock_code=code,
                     stock_name=stock_name,
-                    max_searches=5
+                    max_searches=max_intel_searches
                 )
                 
                 # 格式化情报报告

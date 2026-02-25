@@ -113,7 +113,7 @@ class SearchNewsFreshnessTestCase(unittest.TestCase):
                 stock_name="贵州茅台",
                 max_searches=2,
             )
-        self.assertGreaterEqual(mock_search.call_count, 1)
+        self.assertEqual(mock_search.call_count, 2)
         for call in mock_search.call_args_list:
             call_kwargs = call[1]
             self.assertEqual(

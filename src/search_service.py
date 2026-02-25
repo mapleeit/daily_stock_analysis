@@ -15,8 +15,10 @@ import logging
 import json
 import random
 import re
+import threading
 import time
 from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
@@ -112,6 +114,7 @@ class BaseSearchProvider(ABC):
         self._key_cycle = cycle(api_keys) if api_keys else None
         self._key_usage: Dict[str, int] = {key: 0 for key in api_keys}
         self._key_errors: Dict[str, int] = {key: 0 for key in api_keys}
+        self._state_lock = threading.Lock()
     
     @property
     def name(self) -> str:
@@ -128,32 +131,36 @@ class BaseSearchProvider(ABC):
         
         策略：轮询 + 跳过错误过多的 key
         """
-        if not self._key_cycle:
-            return None
-        
-        # 最多尝试所有 key
-        for _ in range(len(self._api_keys)):
-            key = next(self._key_cycle)
-            # 跳过错误次数过多的 key（超过 3 次）
-            if self._key_errors.get(key, 0) < 3:
-                return key
-        
-        # 所有 key 都有问题，重置错误计数并返回第一个
-        logger.warning(f"[{self._name}] 所有 API Key 都有错误记录，重置错误计数")
-        self._key_errors = {key: 0 for key in self._api_keys}
-        return self._api_keys[0] if self._api_keys else None
+        with self._state_lock:
+            if not self._key_cycle:
+                return None
+
+            # 最多尝试所有 key
+            for _ in range(len(self._api_keys)):
+                key = next(self._key_cycle)
+                # 跳过错误次数过多的 key（超过 3 次）
+                if self._key_errors.get(key, 0) < 3:
+                    return key
+
+            # 所有 key 都有问题，重置错误计数并返回第一个
+            logger.warning(f"[{self._name}] 所有 API Key 都有错误记录，重置错误计数")
+            self._key_errors = {key: 0 for key in self._api_keys}
+            return self._api_keys[0] if self._api_keys else None
     
     def _record_success(self, key: str) -> None:
         """记录成功使用"""
-        self._key_usage[key] = self._key_usage.get(key, 0) + 1
-        # 成功后减少错误计数
-        if key in self._key_errors and self._key_errors[key] > 0:
-            self._key_errors[key] -= 1
+        with self._state_lock:
+            self._key_usage[key] = self._key_usage.get(key, 0) + 1
+            # 成功后减少错误计数
+            if key in self._key_errors and self._key_errors[key] > 0:
+                self._key_errors[key] -= 1
     
     def _record_error(self, key: str) -> None:
         """记录错误"""
-        self._key_errors[key] = self._key_errors.get(key, 0) + 1
-        logger.warning(f"[{self._name}] API Key {key[:8]}... 错误计数: {self._key_errors[key]}")
+        with self._state_lock:
+            self._key_errors[key] = self._key_errors.get(key, 0) + 1
+            error_count = self._key_errors[key]
+        logger.warning(f"[{self._name}] API Key {key[:8]}... 错误计数: {error_count}")
     
     @abstractmethod
     def _do_search(self, query: str, api_key: str, max_results: int, days: int = 7) -> SearchResponse:
@@ -1527,8 +1534,7 @@ class SearchService:
         Returns:
             {维度名称: SearchResponse} 字典
         """
-        results = {}
-        search_count = 0
+        results: Dict[str, SearchResponse] = {}
 
         is_foreign = self._is_foreign_stock(stock_code)
         is_index_etf = self.is_index_or_etf(stock_code, stock_name)
@@ -1569,36 +1575,72 @@ class SearchService:
             ]
         
         logger.info(f"开始多维度情报搜索: {stock_name}({stock_code})")
-        
-        # 轮流使用不同的搜索引擎
-        provider_index = 0
-        
-        for dim in search_dimensions:
-            if search_count >= max_searches:
-                break
-            
-            # 选择搜索引擎（轮流使用）
-            available_providers = [p for p in self._providers if p.is_available]
-            if not available_providers:
-                break
-            
-            provider = available_providers[provider_index % len(available_providers)]
-            provider_index += 1
-            
-            logger.info(f"[情报搜索] {dim['desc']}: 使用 {provider.name}")
-            
-            response = provider.search(dim['query'], max_results=3, days=self.news_max_age_days)
-            results[dim['name']] = response
-            search_count += 1
-            
-            if response.success:
-                logger.info(f"[情报搜索] {dim['desc']}: 获取 {len(response.results)} 条结果")
-            else:
-                logger.warning(f"[情报搜索] {dim['desc']}: 搜索失败 - {response.error_message}")
-            
-            # 短暂延迟避免请求过快
-            time.sleep(0.5)
-        
+
+        available_providers = [p for p in self._providers if p.is_available]
+        if not available_providers:
+            logger.warning("[情报搜索] 无可用搜索引擎，跳过")
+            return results
+
+        planned_tasks = []
+        for index, dim in enumerate(search_dimensions[:max_searches]):
+            provider = available_providers[index % len(available_providers)]
+            planned_tasks.append((dim, provider))
+
+        if not planned_tasks:
+            return results
+
+        max_workers = min(3, len(planned_tasks))
+        total_start = time.time()
+
+        if max_workers <= 1:
+            for dim, provider in planned_tasks:
+                logger.info(f"[情报搜索] {dim['desc']}: 使用 {provider.name}")
+                response = provider.search(dim['query'], max_results=3, days=self.news_max_age_days)
+                results[dim['name']] = response
+                if response.success:
+                    logger.info(f"[情报搜索] {dim['desc']}: 获取 {len(response.results)} 条结果")
+                else:
+                    logger.warning(f"[情报搜索] {dim['desc']}: 搜索失败 - {response.error_message}")
+                if len(results) < len(planned_tasks):
+                    # Keep a tiny gap only in sequential mode.
+                    time.sleep(0.2)
+        else:
+            logger.info(f"[情报搜索] 并行执行 {len(planned_tasks)} 个维度，最大并发 {max_workers}")
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_map = {}
+                for dim, provider in planned_tasks:
+                    logger.info(f"[情报搜索] {dim['desc']}: 使用 {provider.name}")
+                    future = executor.submit(
+                        provider.search,
+                        dim['query'],
+                        max_results=3,
+                        days=self.news_max_age_days
+                    )
+                    future_map[future] = (dim, provider)
+
+                for future in as_completed(future_map):
+                    dim, provider = future_map[future]
+                    try:
+                        response = future.result()
+                    except Exception as e:
+                        logger.warning(f"[情报搜索] {dim['desc']}: 搜索异常 - {e}")
+                        response = SearchResponse(
+                            query=dim['query'],
+                            results=[],
+                            provider=provider.name,
+                            success=False,
+                            error_message=str(e),
+                        )
+                    results[dim['name']] = response
+                    if response.success:
+                        logger.info(f"[情报搜索] {dim['desc']}: 获取 {len(response.results)} 条结果")
+                    else:
+                        logger.warning(f"[情报搜索] {dim['desc']}: 搜索失败 - {response.error_message}")
+
+        elapsed = time.time() - total_start
+        logger.info(
+            f"[情报搜索] {stock_name}({stock_code}) 完成，维度数={len(results)}，耗时 {elapsed:.2f}s"
+        )
         return results
     
     def format_intel_report(self, intel_results: Dict[str, SearchResponse], stock_name: str) -> str:

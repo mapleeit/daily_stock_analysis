@@ -1079,9 +1079,9 @@ class GeminiAnalyzer:
             logger.info(f"[LLM配置] Prompt 长度: {len(prompt)} 字符")
             logger.info(f"[LLM配置] 是否包含新闻: {'是' if news_context else '否'}")
             
-            # 记录完整 prompt 到日志（INFO级别记录摘要，DEBUG记录完整）
-            prompt_preview = prompt[:500] + "..." if len(prompt) > 500 else prompt
-            logger.info(f"[LLM Prompt 预览]\n{prompt_preview}")
+            # INFO 仅记录紧凑预览，避免长表格刷屏；完整内容保留在 DEBUG。
+            prompt_preview = self._compact_preview(prompt, limit=220)
+            logger.info(f"[LLM Prompt 预览] {prompt_preview}")
             logger.debug(f"=== 完整 Prompt ({len(prompt)}字符) ===\n{prompt}\n=== End Prompt ===")
 
             # 设置生成配置（从配置文件读取温度参数）
@@ -1107,9 +1107,9 @@ class GeminiAnalyzer:
             # 记录响应信息
             logger.info(f"[LLM返回] {api_provider} API 响应成功, 耗时 {elapsed:.2f}s, 响应长度 {len(response_text)} 字符")
             
-            # 记录响应预览（INFO级别）和完整响应（DEBUG级别）
-            response_preview = response_text[:300] + "..." if len(response_text) > 300 else response_text
-            logger.info(f"[LLM返回 预览]\n{response_preview}")
+            # INFO 使用紧凑单行预览，详细内容仍写入 DEBUG。
+            response_preview = self._compact_preview(response_text, limit=220)
+            logger.info(f"[LLM返回 预览] {response_preview}")
             logger.debug(f"=== {api_provider} 完整响应 ({len(response_text)}字符) ===\n{response_text}\n=== End Response ===")
             
             # 解析响应
@@ -1331,6 +1331,14 @@ class GeminiAnalyzer:
 请输出完整的 JSON 格式决策仪表盘。"""
         
         return prompt
+
+    @staticmethod
+    def _compact_preview(text: str, limit: int = 220) -> str:
+        """Generate a compact one-line preview for INFO logs."""
+        normalized = " ".join((text or "").split())
+        if len(normalized) <= limit:
+            return normalized
+        return f"{normalized[:limit]}..."
     
     def _format_volume(self, volume: Optional[float]) -> str:
         """格式化成交量显示"""

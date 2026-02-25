@@ -695,6 +695,7 @@ class DataFetcherManager:
         source_priority = config.realtime_source_priority.split(',')
         is_hk = _is_hk_stock_code(stock_code)
         hk_akshare_attempted = False
+        hk_supported_sources = {"akshare_em", "akshare_sina", "tencent", "akshare_qq"}
         
         errors = []
         # primary_quote holds the first successful result; we may supplement
@@ -704,6 +705,10 @@ class DataFetcherManager:
         for source in source_priority:
             source = source.strip().lower()
             effective_source = source
+
+            if is_hk and source not in hk_supported_sources:
+                logger.debug(f"[实时行情] {stock_code} 港股跳过不支持的数据源: {source}")
+                continue
             
             try:
                 quote = None

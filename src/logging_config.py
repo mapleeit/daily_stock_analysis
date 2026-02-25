@@ -32,6 +32,12 @@ DEFAULT_QUIET_LOGGERS = [
     'httpx',
 ]
 
+# Some third-party loggers emit repetitive warnings during network jitter.
+# Keep them quieter to preserve actionable signals.
+LOG_LEVEL_OVERRIDES = {
+    'urllib3.connectionpool': logging.ERROR,
+}
+
 
 def setup_logging(
     log_prefix: str = "app",
@@ -113,6 +119,9 @@ def setup_logging(
 
     for logger_name in quiet_loggers:
         logging.getLogger(logger_name).setLevel(logging.WARNING)
+
+    for logger_name, log_level in LOG_LEVEL_OVERRIDES.items():
+        logging.getLogger(logger_name).setLevel(log_level)
 
     # 输出初始化完成信息
     logging.info(f"日志系统初始化完成，日志目录: {log_path.absolute()}")

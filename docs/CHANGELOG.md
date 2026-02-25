@@ -39,8 +39,15 @@
   - 默认数据源初始化增加可用性过滤：不可用源（如未配置 Token 的 Tushare）启动时即跳过
   - 修复港股实时行情熔断前置检查：`akshare_hk` 冷却期内直接跳过，避免重复请求
   - 港股实时行情源去重：在 `tencent/akshare_sina/akshare_em` 优先级下仅触发一次 Akshare 港股接口
+  - 港股实时行情 source 过滤：自动跳过 `efinance/tushare` 等不支持港股的 source，减少首只港股超时重试
   - 新增实时行情失败负缓存：`akshare_hk` 与 `efinance` 在短时间连续失败时直接跳过刷新，减少重复超时重试
   - 优化 Pytdx 连接生命周期：连接失败时立即释放候选连接，降低 `unclosed TrafficStatSocket` 风险
+- ⚡ **情报搜索与日志输出性能优化**
+  - `search_comprehensive_intel` 支持维度并发执行，并补充 provider 状态锁，降低单股新闻搜索总耗时
+  - `simple` 报告模式默认搜索维度从 5 调整为 3（`full` 模式维持 5），减少不必要 API 调用
+  - LLM Prompt/Response 的 INFO 预览改为单行压缩输出，减少日志刷屏并提升可读性
+  - 未配置飞书文档时不再导入 Feishu SDK，避免 `lark_oapi/websockets` 的 DeprecationWarning 噪音
+  - `urllib3.connectionpool` 重试日志级别下调，保留业务错误日志并减少重复连接告警
 - 🐛 **修复 HTTP 非安全上下文下 /chat 页面黑屏**（Issue #377）
   - `crypto.randomUUID()` 仅在 HTTPS/localhost 安全上下文中可用，通过 `http://IP:port` 访问时页面崩溃黑屏
   - 新增 `apps/dsa-web/src/utils/uuid.ts`，提供带 fallback 的 `generateUUID()` 工具函数
