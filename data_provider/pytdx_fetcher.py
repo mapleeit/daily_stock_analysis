@@ -168,25 +168,34 @@ class PytdxFetcher(BaseFetcher):
         TdxHq_API = self._get_pytdx()
         if TdxHq_API is None:
             raise DataFetchError("pytdx 库未安装")
-        
-        api = TdxHq_API()
+
+        api = None
         connected = False
-        
+
         try:
             # 尝试连接服务器（自动选择最优）
             for i in range(len(self._hosts)):
                 host_idx = (self._current_host_idx + i) % len(self._hosts)
                 host, port = self._hosts[host_idx]
-                
+
+                candidate_api = TdxHq_API()
                 try:
-                    if api.connect(host, port, time_out=5):
+                    if candidate_api.connect(host, port, time_out=5):
                         connected = True
+                        api = candidate_api
                         self._current_host_idx = host_idx
                         logger.debug(f"Pytdx 连接成功: {host}:{port}")
                         break
                 except Exception as e:
                     logger.debug(f"Pytdx 连接 {host}:{port} 失败: {e}")
                     continue
+                finally:
+                    # 未连接成功时立即释放 candidate，避免 socket 泄漏
+                    if not connected:
+                        try:
+                            candidate_api.disconnect()
+                        except Exception:
+                            pass
             
             if not connected:
                 raise DataFetchError("Pytdx 无法连接任何服务器")
@@ -195,11 +204,12 @@ class PytdxFetcher(BaseFetcher):
             
         finally:
             # 确保断开连接
-            try:
-                api.disconnect()
-                logger.debug("Pytdx 连接已断开")
-            except Exception as e:
-                logger.warning(f"Pytdx 断开连接时出错: {e}")
+            if api is not None:
+                try:
+                    api.disconnect()
+                    logger.debug("Pytdx 连接已断开")
+                except Exception as e:
+                    logger.warning(f"Pytdx 断开连接时出错: {e}")
     
     def _get_market_code(self, stock_code: str) -> Tuple[int, str]:
         """

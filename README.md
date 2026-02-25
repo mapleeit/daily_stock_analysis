@@ -226,6 +226,23 @@ python main.py
 
 > 📖 完整环境变量、定时任务配置请参考 [完整配置指南](docs/full-guide.md)
 
+### 🚀 港股任务性能优化建议（GitHub Actions）
+
+如果你的自选股主要是港股（如 `HK00700,HK03690,HK09988`），建议使用以下配置降低无效重试耗时：
+
+- 历史数据优先级（让港股优先命中 YFinance）：
+  - `YFINANCE_PRIORITY=0`
+  - `EFINANCE_PRIORITY=99`
+  - `AKSHARE_PRIORITY=99`
+  - `PYTDX_PRIORITY=99`
+  - `BAOSTOCK_PRIORITY=99`
+- 若不强依赖盘中实时价，可关闭实时行情以减少失败重试：
+  - `ENABLE_REALTIME_QUOTE=false`
+- 建议保持：
+  - `ENABLE_CHIP_DISTRIBUTION=false`（云端环境稳定性更好）
+
+> 提示：A 股场景不建议直接复用以上优先级，请按数据质量需求单独配置。
+
 
 ## 🖥️ Web 界面
 
