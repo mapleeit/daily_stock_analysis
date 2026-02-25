@@ -38,6 +38,7 @@
   - 默认数据源初始化增加可用性过滤：不可用源（如未配置 Token 的 Tushare）启动时即跳过
   - 修复港股实时行情熔断前置检查：`akshare_hk` 冷却期内直接跳过，避免重复请求
   - 港股实时行情源去重：在 `tencent/akshare_sina/akshare_em` 优先级下仅触发一次 Akshare 港股接口
+  - 新增实时行情失败负缓存：`akshare_hk` 与 `efinance` 在短时间连续失败时直接跳过刷新，减少重复超时重试
   - 优化 Pytdx 连接生命周期：连接失败时立即释放候选连接，降低 `unclosed TrafficStatSocket` 风险
 - 🐛 **修复 HTTP 非安全上下文下 /chat 页面黑屏**（Issue #377）
   - `crypto.randomUUID()` 仅在 HTTPS/localhost 安全上下文中可用，通过 `http://IP:port` 访问时页面崩溃黑屏

@@ -25,11 +25,6 @@ def _install_provider_stubs():
         'data_provider.pytdx_fetcher': {'PytdxFetcher': type('PytdxFetcher', (), {})},
         'data_provider.baostock_fetcher': {'BaostockFetcher': type('BaostockFetcher', (), {})},
         'data_provider.yfinance_fetcher': {'YfinanceFetcher': type('YfinanceFetcher', (), {})},
-        'data_provider.akshare_fetcher': {
-            'AkshareFetcher': type('AkshareFetcher', (), {}),
-            '_is_us_code': lambda code: False,
-            'is_hk_stock_code': lambda code: str(code).upper().startswith('HK') or (str(code).isdigit() and len(str(code)) == 5),
-        },
     }
 
     for module_name, attrs in provider_modules.items():
@@ -138,6 +133,63 @@ class TestHKRealtimeDedup(unittest.TestCase):
         self.assertIsNone(quote)
         self.assertEqual(len(realtime_fetcher.calls), 1)
         self.assertEqual(realtime_fetcher.calls[0][0], "HK09988")
+
+
+class _DummyBreaker:
+    def __init__(self):
+        self.failure_count = 0
+        self.success_count = 0
+
+    def is_available(self, _source_key):
+        return True
+
+    def record_success(self, _source_key):
+        self.success_count += 1
+
+    def record_failure(self, _source_key, _error=None):
+        self.failure_count += 1
+
+
+class TestAkshareHKNegativeCache(unittest.TestCase):
+    def test_hk_realtime_failure_negative_cache(self):
+        """
+        首次港股实时请求失败后，负缓存窗口内再次请求应直接跳过 API 调用。
+        """
+        from data_provider import akshare_fetcher as akf
+
+        # 重置模块级缓存，避免测试间相互影响
+        akf._hk_realtime_cache.update({
+            'data': None,
+            'timestamp': 0,
+            'ttl': 300,
+            'failure_timestamp': 0,
+            'failure_ttl': 180,
+        })
+
+        call_counter = {'n': 0}
+        fake_akshare = types.ModuleType('akshare')
+
+        def _fail_hk_spot():
+            call_counter['n'] += 1
+            raise RuntimeError("mock hk api failure")
+
+        fake_akshare.stock_hk_spot_em = _fail_hk_spot
+        breaker = _DummyBreaker()
+
+        with patch.object(akf, 'get_config', return_value=SimpleNamespace(enable_eastmoney_patch=False)), \
+             patch.object(akf, 'get_realtime_circuit_breaker', return_value=breaker), \
+             patch.dict(sys.modules, {'akshare': fake_akshare}):
+            fetcher = akf.AkshareFetcher()
+            # 避免测试中的真实 sleep
+            fetcher._set_random_user_agent = lambda: None
+            fetcher._enforce_rate_limit = lambda: None
+
+            first = fetcher._get_hk_realtime_quote("HK00700")
+            second = fetcher._get_hk_realtime_quote("HK00700")
+
+        self.assertIsNone(first)
+        self.assertIsNone(second)
+        self.assertEqual(call_counter['n'], 1)
 
 
 if __name__ == '__main__':

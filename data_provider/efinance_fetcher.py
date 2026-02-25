@@ -110,14 +110,18 @@ USER_AGENTS = [
 _realtime_cache: Dict[str, Any] = {
     'data': None,
     'timestamp': 0,
-    'ttl': 600  # 10分钟缓存有效期
+    'ttl': 600,  # 10分钟缓存有效期
+    'failure_timestamp': 0,
+    'failure_ttl': 180,  # 失败后短期负缓存，减少重复失败请求
 }
 
 # ETF 实时行情缓存（与股票分开缓存）
 _etf_realtime_cache: Dict[str, Any] = {
     'data': None,
     'timestamp': 0,
-    'ttl': 600  # 10分钟缓存有效期
+    'ttl': 600,  # 10分钟缓存有效期
+    'failure_timestamp': 0,
+    'failure_ttl': 180,  # 失败后短期负缓存，减少重复失败请求
 }
 
 
@@ -482,6 +486,13 @@ class EfinanceFetcher(BaseFetcher):
         try:
             # 检查缓存
             current_time = time.time()
+            if (
+                _realtime_cache.get('failure_timestamp', 0) > 0 and
+                current_time - _realtime_cache['failure_timestamp'] < _realtime_cache.get('failure_ttl', 180)
+            ):
+                remaining = int(_realtime_cache['failure_ttl'] - (current_time - _realtime_cache['failure_timestamp']))
+                logger.debug(f"[负缓存] 实时行情(efinance) 近期失败，{remaining}s 内跳过刷新")
+                return None
             if (_realtime_cache['data'] is not None and 
                 current_time - _realtime_cache['timestamp'] < _realtime_cache['ttl']):
                 df = _realtime_cache['data']
@@ -508,6 +519,7 @@ class EfinanceFetcher(BaseFetcher):
                 # 更新缓存
                 _realtime_cache['data'] = df
                 _realtime_cache['timestamp'] = current_time
+                _realtime_cache['failure_timestamp'] = 0
                 logger.info(f"[缓存更新] 实时行情(efinance) 缓存已刷新，TTL={_realtime_cache['ttl']}s")
             
             # 查找指定股票
@@ -565,6 +577,7 @@ class EfinanceFetcher(BaseFetcher):
             
         except Exception as e:
             logger.error(f"[API错误] 获取 {stock_code} 实时行情(efinance)失败: {e}")
+            _realtime_cache['failure_timestamp'] = time.time()
             circuit_breaker.record_failure(source_key, str(e))
             return None
 
@@ -585,6 +598,13 @@ class EfinanceFetcher(BaseFetcher):
         try:
             current_time = time.time()
             if (
+                _etf_realtime_cache.get('failure_timestamp', 0) > 0 and
+                current_time - _etf_realtime_cache['failure_timestamp'] < _etf_realtime_cache.get('failure_ttl', 180)
+            ):
+                remaining = int(_etf_realtime_cache['failure_ttl'] - (current_time - _etf_realtime_cache['failure_timestamp']))
+                logger.debug(f"[负缓存] ETF实时行情(efinance) 近期失败，{remaining}s 内跳过刷新")
+                return None
+            if (
                 _etf_realtime_cache['data'] is not None and
                 current_time - _etf_realtime_cache['timestamp'] < _etf_realtime_cache['ttl']
             ):
@@ -604,6 +624,7 @@ class EfinanceFetcher(BaseFetcher):
                 if df is not None and not df.empty:
                     logger.info(f"[API返回] ETF 实时行情成功: {len(df)} 条, 耗时 {api_elapsed:.2f}s")
                     circuit_breaker.record_success(source_key)
+                    _etf_realtime_cache['failure_timestamp'] = 0
                 else:
                     logger.warning(f"[API返回] ETF 实时行情为空, 耗时 {api_elapsed:.2f}s")
                     df = pd.DataFrame()
@@ -659,6 +680,7 @@ class EfinanceFetcher(BaseFetcher):
             return quote
         except Exception as e:
             logger.error(f"[API错误] 获取 ETF {stock_code} 实时行情(efinance)失败: {e}")
+            _etf_realtime_cache['failure_timestamp'] = time.time()
             circuit_breaker.record_failure(source_key, str(e))
             return None
 
