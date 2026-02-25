@@ -119,3 +119,31 @@
 python -m py_compile main.py src/*.py data_provider/*.py
 flake8 main.py src/ --max-line-length=120
 ```
+
+## Cursor Cloud specific instructions
+
+### Services overview
+
+| Service | How to start | Notes |
+|---------|-------------|-------|
+| **Python backend + FastAPI** | `python3 main.py --webui-only` | Serves API on `:8000` and static SPA from `static/` |
+| **React frontend** (build) | `cd apps/dsa-web && npm run build` | Outputs to `/workspace/static/`; only needed after frontend changes |
+
+- Database is **SQLite** (auto-created at `./data/stock_analysis.db`), no external DB required.
+- AI analysis and news search require external API keys (see `.env.example`). The WebUI and all offline tests work without them.
+
+### Running checks
+
+- **Full CI gate**: `./scripts/ci_gate.sh` (py_compile + flake8 critical + deterministic tests + offline pytest)
+- **Backend lint**: `flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics`
+- **Backend tests**: `python3 -m pytest -m "not network"` (225 offline tests)
+- **Frontend lint**: `cd apps/dsa-web && npm run lint`
+- **Frontend build**: `cd apps/dsa-web && npm run build`
+
+### Gotchas
+
+- Use `python3` (not `python`) unless the symlink has been created; the CI gate script (`scripts/ci_gate.sh`) and `test.sh` call `python3`.
+- The `.env` file must exist (copy from `.env.example`) before starting the server or running `test_env.py`.
+- Frontend build output goes to `/workspace/static/` (not inside `apps/dsa-web`). FastAPI serves this directory as a SPA fallback.
+- `test_env.py` hardcodes a local proxy (`127.0.0.1:10809`); use `python3 -m pytest -m "not network"` for offline testing instead.
+- Pydantic V2 deprecation warnings in `api/v1/schemas/` are cosmetic and do not affect functionality.
