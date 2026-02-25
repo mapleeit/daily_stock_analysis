@@ -196,6 +196,7 @@ journalctl -u stock-analyzer -f
 | `SCHEDULE_TIME` | `18:00` | 每日执行时间 |
 | `MARKET_REVIEW_ENABLED` | `true` | 是否启用大盘复盘 |
 | `TAVILY_API_KEYS` | - | 新闻搜索（可选） |
+| `PERPLEXITY_API_KEYS` | - | Perplexity Sonar Pro Search（可选） |
 
 ---
 
@@ -360,7 +361,12 @@ git push -u origin main
 | `CUSTOM_WEBHOOK_URLS` | 自定义 Webhook（多个逗号分隔） | 可选* |
 | `STOCK_LIST` | 自选股列表，如 `600519,300750` | ✅ |
 | `TAVILY_API_KEYS` | Tavily 搜索 API Key | 推荐 |
+| `BOCHA_API_KEYS` | Bocha 搜索 API Key | 可选 |
+| `BRAVE_API_KEYS` | Brave Search API Key | 可选 |
 | `SERPAPI_API_KEYS` | SerpAPI Key | 可选 |
+| `PERPLEXITY_API_KEYS` | Perplexity Sonar Pro Search API Key | 可选 |
+| `PERPLEXITY_BASE_URL` | Perplexity/OpenRouter API Base URL（默认 `https://openrouter.ai/api/v1`） | 可选 |
+| `PERPLEXITY_MODEL` | Perplexity 模型名（默认 `perplexity/sonar-pro-search`） | 可选 |
 | `TUSHARE_TOKEN` | Tushare Token | 可选 |
 | `GEMINI_MODEL` | 模型名称（默认 gemini-2.0-flash） | 可选 |
 

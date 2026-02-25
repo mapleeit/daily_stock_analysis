@@ -8,6 +8,11 @@
 ## [Unreleased]
 
 ### 新增（#minor）
+- 🔍 **Perplexity Sonar Pro Search 搜索引擎支持**
+  - 新增 `PERPLEXITY_API_KEYS`（支持逗号分隔多 Key）接入 `perplexity/sonar-pro-search`
+  - 搜索服务新增 Perplexity provider，支持在 Tavily / SerpAPI / Bocha / Brave 之外作为替代引擎
+  - 新增可选配置：`PERPLEXITY_BASE_URL`（默认 `https://openrouter.ai/api/v1`）、`PERPLEXITY_MODEL`
+  - CLI / Bot / Agent / 大盘复盘链路统一支持 Perplexity 搜索
 - 📅 **交易日判断**（Issue #373）
   - 默认非交易日不执行分析，按 A 股 / 港股 / 美股各自交易日历区分
   - 混合持仓时，每只股票只在其市场开市日分析，休市股票当日跳过

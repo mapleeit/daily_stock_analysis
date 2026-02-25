@@ -196,6 +196,7 @@ journalctl -u stock-analyzer -f
 | `SCHEDULE_TIME` | `18:00` | Daily execution time |
 | `MARKET_REVIEW_ENABLED` | `true` | Enable market review |
 | `TAVILY_API_KEYS` | - | News search (optional) |
+| `PERPLEXITY_API_KEYS` | - | Perplexity Sonar Pro Search (optional) |
 
 ---
 
@@ -360,7 +361,12 @@ Add these Secrets:
 | `CUSTOM_WEBHOOK_URLS` | Custom Webhook (comma-separated for multiple) | Optional* |
 | `STOCK_LIST` | Watchlist, e.g., `600519,300750` | ✅ |
 | `TAVILY_API_KEYS` | Tavily Search API Key | Recommended |
+| `BOCHA_API_KEYS` | Bocha Search API Key | Optional |
+| `BRAVE_API_KEYS` | Brave Search API Key | Optional |
 | `SERPAPI_API_KEYS` | SerpAPI Key | Optional |
+| `PERPLEXITY_API_KEYS` | Perplexity Sonar Pro Search API Key | Optional |
+| `PERPLEXITY_BASE_URL` | Perplexity/OpenRouter API base URL (default `https://openrouter.ai/api/v1`) | Optional |
+| `PERPLEXITY_MODEL` | Perplexity model name (default `perplexity/sonar-pro-search`) | Optional |
 | `TUSHARE_TOKEN` | Tushare Token | Optional |
 | `GEMINI_MODEL` | Model name (default gemini-2.0-flash) | Optional |
 

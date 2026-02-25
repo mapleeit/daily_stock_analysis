@@ -109,6 +109,9 @@ daily_stock_analysis/
 | `BOCHA_API_KEYS` | [博查搜索](https://open.bocha.cn/) Web Search API（中文搜索优化，支持AI摘要，多个key用逗号分隔） | 可选 |
 | `BRAVE_API_KEYS` | [Brave Search](https://brave.com/search/api/) API（隐私优先，美股优化，多个key用逗号分隔） | 可选 |
 | `SERPAPI_API_KEYS` | [SerpAPI](https://serpapi.com/baidu-search-api?utm_source=github_daily_stock_analysis) 备用搜索 | 可选 |
+| `PERPLEXITY_API_KEYS` | [Perplexity Sonar Pro Search](https://openrouter.ai/perplexity/sonar-pro-search)（全网实时搜索，可替代 Tavily/SerpAPI/Bocha/Brave） | 可选 |
+| `PERPLEXITY_BASE_URL` | Perplexity/OpenRouter API Base URL（默认 `https://openrouter.ai/api/v1`） | 可选 |
+| `PERPLEXITY_MODEL` | Perplexity 模型名（默认 `perplexity/sonar-pro-search`） | 可选 |
 | `TUSHARE_TOKEN` | [Tushare Pro](https://tushare.pro/weborder/#/login?reg=834638 ) Token | 可选 |
 
 #### ✅ 最小配置示例
@@ -118,7 +121,7 @@ daily_stock_analysis/
 1. **AI 模型**：`AIHUBMIX_KEY`（[AIHubmix](https://aihubmix.com/?aff=CfMq)，一 Key 多模型）、`GEMINI_API_KEY` 或 `OPENAI_API_KEY`
 2. **通知渠道**：至少配置一个，如 `WECHAT_WEBHOOK_URL` 或 `EMAIL_SENDER` + `EMAIL_PASSWORD`
 3. **股票列表**：`STOCK_LIST`（必填）
-4. **搜索 API**：`TAVILY_API_KEYS`（强烈推荐，用于新闻搜索）
+4. **搜索 API**：`TAVILY_API_KEYS` 或 `PERPLEXITY_API_KEYS`（强烈推荐，用于新闻搜索）
 
 > 💡 配置完以上 4 项即可开始使用！
 
@@ -209,6 +212,9 @@ daily_stock_analysis/
 | `BOCHA_API_KEYS` | 博查搜索 API Key（中文优化） | 可选 |
 | `BRAVE_API_KEYS` | Brave Search API Key（美股优化） | 可选 |
 | `SERPAPI_API_KEYS` | SerpAPI 备用搜索 | 可选 |
+| `PERPLEXITY_API_KEYS` | Perplexity Sonar Pro Search API Key（全网搜索） | 可选 |
+| `PERPLEXITY_BASE_URL` | Perplexity/OpenRouter API Base URL（默认 `https://openrouter.ai/api/v1`） | 可选 |
+| `PERPLEXITY_MODEL` | Perplexity 模型名（默认 `perplexity/sonar-pro-search`） | 可选 |
 | `NEWS_MAX_AGE_DAYS` | 新闻最大时效（天），搜索时限制结果在近期内 | 默认 `3` |
 | `BIAS_THRESHOLD` | 乖离率阈值（%），超过提示不追高；强势趋势股自动放宽到 1.5 倍 | 默认 `5.0` |
 

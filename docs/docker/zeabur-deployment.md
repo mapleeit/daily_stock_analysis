@@ -147,7 +147,11 @@ Dockerfile 已采用多阶段构建，前端会在镜像构建时自动打包。
 | `GEMINI_API_KEY` | Gemini API 密钥 |
 | `BOCHA_API_KEYS` | Bocha API 密钥（用逗号分隔） |
 | `TAVILY_API_KEYS` | Tavily API 密钥（用逗号分隔） |
-| `SERPAPI_KEYS` | SerpAPI 密钥（用逗号分隔） |
+| `BRAVE_API_KEYS` | Brave Search API 密钥（用逗号分隔） |
+| `SERPAPI_API_KEYS` | SerpAPI 密钥（用逗号分隔） |
+| `PERPLEXITY_API_KEYS` | Perplexity Sonar Pro Search 密钥（用逗号分隔） |
+| `PERPLEXITY_BASE_URL` | Perplexity/OpenRouter API Base URL（默认 `https://openrouter.ai/api/v1`） |
+| `PERPLEXITY_MODEL` | Perplexity 模型名（默认 `perplexity/sonar-pro-search`） |
 
 ### 5.4 配置方法
 
