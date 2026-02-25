@@ -32,7 +32,8 @@ DEFAULT_QUIET_LOGGERS = [
     'httpx',
 ]
 
-# 某些第三方 logger 在网络抖动时会产生大量重复 warning，单独收敛级别。
+# Some third-party loggers emit repetitive warnings during network jitter.
+# Keep them quieter to preserve actionable signals.
 LOG_LEVEL_OVERRIDES = {
     'urllib3.connectionpool': logging.ERROR,
 }

@@ -246,7 +246,7 @@ class StockAnalysisPipeline:
                     f"[{code}] 开始多维度情报搜索... (报告类型: {report_type.value}, 维度数: {max_intel_searches})"
                 )
 
-                # simple 模式默认减少搜索维度，优先保证时效；full 模式保持全维度。
+                # Simple mode searches fewer intel dimensions for better latency; full mode keeps full coverage.
                 intel_results = self.search_service.search_comprehensive_intel(
                     stock_code=code,
                     stock_name=stock_name,
