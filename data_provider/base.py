@@ -362,6 +362,10 @@ class DataFetcherManager:
             fetchers: 数据源列表（可选，默认按优先级自动创建）
         """
         self._fetchers: List[BaseFetcher] = []
+        # Historical daily data source failure negative-cache:
+        # when a fetcher just failed, skip it for a short cooldown window.
+        self._daily_failure_cache: Dict[str, float] = {}
+        self._daily_failure_ttl: float = 180.0
         
         if fetchers:
             # 按优先级排序
@@ -457,6 +461,11 @@ class DataFetcherManager:
         """
         errors: List[str] = []
         for fetcher in fetchers:
+            last_failure_at = self._daily_failure_cache.get(fetcher.name, 0)
+            if last_failure_at and (time.time() - last_failure_at < self._daily_failure_ttl):
+                remaining = int(self._daily_failure_ttl - (time.time() - last_failure_at))
+                logger.debug(f"[日线负缓存] [{fetcher.name}] 近期失败，{remaining}s 内跳过")
+                continue
             try:
                 logger.info(f"尝试使用 [{fetcher.name}] 获取 {stock_code}...")
                 df = fetcher.get_daily_data(
@@ -467,11 +476,13 @@ class DataFetcherManager:
                 )
                 if df is not None and not df.empty:
                     logger.info(f"[{fetcher.name}] 成功获取 {stock_code}")
+                    self._daily_failure_cache.pop(fetcher.name, None)
                     return df, fetcher.name
             except Exception as e:
                 error_msg = f"[{fetcher.name}] 失败: {str(e)}"
                 logger.warning(error_msg)
                 errors.append(error_msg)
+                self._daily_failure_cache[fetcher.name] = time.time()
 
         prefix = f"{route_label} " if route_label else ""
         error_summary = f"{prefix}{stock_code} 获取失败:\n" + "\n".join(errors)
