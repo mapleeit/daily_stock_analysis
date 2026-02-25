@@ -79,6 +79,9 @@ class StockAnalysisPipeline:
         
         # 初始化搜索服务
         self.search_service = SearchService(
+            perplexity_keys=self.config.perplexity_api_keys,
+            perplexity_base_url=self.config.perplexity_base_url,
+            perplexity_model=self.config.perplexity_model,
             bocha_keys=self.config.bocha_api_keys,
             tavily_keys=self.config.tavily_api_keys,
             brave_keys=self.config.brave_api_keys,
@@ -98,7 +101,7 @@ class StockAnalysisPipeline:
         else:
             logger.info("筹码分布分析已禁用")
         if self.search_service.is_available:
-            logger.info("搜索服务已启用 (Tavily/SerpAPI)")
+            logger.info("搜索服务已启用 (Perplexity/Bocha/Tavily/Brave/SerpAPI)")
         else:
             logger.warning("搜索服务未启用（未配置 API Key）")
     

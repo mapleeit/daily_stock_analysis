@@ -71,8 +71,10 @@ class StatusCommand(BotCommand):
         status["ai_openai"] = bool(config.openai_api_key)
         
         # 搜索服务状态
+        status["search_perplexity"] = len(config.perplexity_api_keys) > 0
         status["search_bocha"] = len(config.bocha_api_keys) > 0
         status["search_tavily"] = len(config.tavily_api_keys) > 0
+        status["search_brave"] = len(config.brave_api_keys) > 0
         status["search_serpapi"] = len(config.serpapi_keys) > 0
         
         # 通知渠道状态
@@ -115,8 +117,10 @@ class StatusCommand(BotCommand):
             f"• OpenAI API: {icon(status['ai_openai'])}",
             "",
             "**🔍 搜索服务**",
+            f"• Perplexity: {icon(status['search_perplexity'])}",
             f"• Bocha: {icon(status['search_bocha'])}",
             f"• Tavily: {icon(status['search_tavily'])}",
+            f"• Brave: {icon(status['search_brave'])}",
             f"• SerpAPI: {icon(status['search_serpapi'])}",
             "",
             "**📢 通知渠道**",

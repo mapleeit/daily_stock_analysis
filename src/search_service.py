@@ -12,7 +12,9 @@ A股自选股智能分析系统 - 搜索服务模块
 """
 
 import logging
+import json
 import random
+import re
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -873,6 +875,333 @@ class BraveSearchProvider(BaseSearchProvider):
             return '未知来源'
 
 
+class PerplexitySearchProvider(BaseSearchProvider):
+    """Perplexity Sonar Pro Search provider via OpenAI-compatible API."""
+
+    DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
+    DEFAULT_MODEL = "perplexity/sonar-pro-search"
+
+    def __init__(self, api_keys: List[str], base_url: Optional[str] = None, model: Optional[str] = None):
+        super().__init__(api_keys, "Perplexity")
+        self._base_url = (base_url or self.DEFAULT_BASE_URL).rstrip("/")
+        self._model = model or self.DEFAULT_MODEL
+
+    def _do_search(self, query: str, api_key: str, max_results: int, days: int = 7) -> SearchResponse:
+        endpoint = f"{self._base_url}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://github.com/mapleeit/daily_stock_analysis",
+            "X-Title": "daily_stock_analysis",
+        }
+        payload = {
+            "model": self._model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a financial search assistant. Respond with concise and factual findings, "
+                        "and include source links when available."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Search for recent news in the last {days} days about: {query}. "
+                        f"Return up to {max_results} key results with titles, summaries, source URLs, and dates."
+                    ),
+                },
+            ],
+            "temperature": 0.2,
+            "max_tokens": min(max(max_results * 280, 600), 1800),
+        }
+
+        try:
+            response = requests.post(endpoint, headers=headers, json=payload, timeout=20)
+            if response.status_code != 200:
+                return SearchResponse(
+                    query=query,
+                    results=[],
+                    provider=self.name,
+                    success=False,
+                    error_message=self._parse_error(response),
+                )
+
+            try:
+                data = response.json()
+            except ValueError as exc:
+                return SearchResponse(
+                    query=query,
+                    results=[],
+                    provider=self.name,
+                    success=False,
+                    error_message=f"Response JSON parse failed: {exc}",
+                )
+
+            message_text = self._extract_message_text(data)
+            results = self._build_results(query=query, data=data, message_text=message_text, max_results=max_results)
+            logger.info(f"[Perplexity] 搜索完成，query='{query}', 解析结果 {len(results)} 条")
+
+            return SearchResponse(
+                query=query,
+                results=results,
+                provider=self.name,
+                success=True,
+            )
+        except requests.exceptions.Timeout:
+            return SearchResponse(
+                query=query,
+                results=[],
+                provider=self.name,
+                success=False,
+                error_message="请求超时",
+            )
+        except requests.exceptions.RequestException as exc:
+            return SearchResponse(
+                query=query,
+                results=[],
+                provider=self.name,
+                success=False,
+                error_message=f"网络请求失败: {exc}",
+            )
+        except Exception as exc:
+            return SearchResponse(
+                query=query,
+                results=[],
+                provider=self.name,
+                success=False,
+                error_message=f"未知错误: {exc}",
+            )
+
+    def _extract_message_text(self, payload: Dict[str, Any]) -> str:
+        choices = payload.get("choices", [])
+        if not choices or not isinstance(choices[0], dict):
+            return ""
+
+        message = choices[0].get("message", {})
+        content = message.get("content", "")
+        if isinstance(content, str):
+            return content.strip()
+        if isinstance(content, list):
+            fragments = []
+            for part in content:
+                if isinstance(part, dict):
+                    text = part.get("text")
+                    if text:
+                        fragments.append(str(text))
+                elif isinstance(part, str):
+                    fragments.append(part)
+            return "\n".join(fragments).strip()
+        return str(content).strip()
+
+    def _build_results(self, query: str, data: Dict[str, Any], message_text: str, max_results: int) -> List[SearchResult]:
+        results: List[SearchResult] = []
+        seen_urls: set = set()
+        seen_titles: set = set()
+
+        def append_result(title: str, snippet: str, url: str, source: str, published_date: Optional[str] = None) -> None:
+            title_key = (title or "").strip().lower()
+            if url and url in seen_urls:
+                return
+            if not url and title_key and title_key in seen_titles:
+                return
+            if url:
+                seen_urls.add(url)
+            if title_key:
+                seen_titles.add(title_key)
+            results.append(
+                SearchResult(
+                    title=title or "Search Result",
+                    snippet=(snippet or "")[:500],
+                    url=url or "",
+                    source=source or "Perplexity",
+                    published_date=published_date,
+                )
+            )
+
+        structured_items: List[Any] = []
+        for key in ("search_results", "results", "sources", "references"):
+            value = data.get(key)
+            if isinstance(value, list):
+                structured_items.extend(value)
+
+        message = (data.get("choices") or [{}])[0].get("message", {})
+        annotations = message.get("annotations")
+        if isinstance(annotations, list):
+            structured_items.extend(annotations)
+
+        structured_items.extend(self._parse_json_payload_items(message_text))
+
+        for item in structured_items:
+            normalized = self._normalize_item(item)
+            if not normalized:
+                continue
+            append_result(
+                title=normalized["title"],
+                snippet=normalized["snippet"],
+                url=normalized["url"],
+                source=normalized["source"],
+                published_date=normalized["published_date"],
+            )
+
+        for idx, citation_url in enumerate(self._extract_citations(data), 1):
+            append_result(
+                title=f"Source {idx}",
+                snippet=message_text[:500] if message_text else f"Reference for query: {query}",
+                url=citation_url,
+                source=self._extract_domain(citation_url),
+                published_date=None,
+            )
+
+        if not results and message_text:
+            append_result(
+                title=query,
+                snippet=message_text[:500],
+                url="",
+                source="Perplexity",
+                published_date=None,
+            )
+
+        return results[:max_results]
+
+    def _parse_json_payload_items(self, message_text: str) -> List[Any]:
+        if not message_text:
+            return []
+
+        candidates: List[Any] = []
+        parsed = self._try_parse_json(message_text)
+        if parsed is not None:
+            candidates.extend(self._extract_items_from_json(parsed))
+            return candidates
+
+        fenced_blocks = re.findall(r"```(?:json)?\s*(.*?)```", message_text, flags=re.IGNORECASE | re.DOTALL)
+        for block in fenced_blocks:
+            parsed_block = self._try_parse_json(block.strip())
+            if parsed_block is None:
+                continue
+            candidates.extend(self._extract_items_from_json(parsed_block))
+
+        return candidates
+
+    @staticmethod
+    def _try_parse_json(payload: str) -> Optional[Any]:
+        try:
+            return json.loads(payload)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _extract_items_from_json(payload: Any) -> List[Any]:
+        if isinstance(payload, list):
+            return payload
+        if not isinstance(payload, dict):
+            return []
+        for key in ("search_results", "results", "sources", "references"):
+            value = payload.get(key)
+            if isinstance(value, list):
+                return value
+        return []
+
+    def _normalize_item(self, item: Any) -> Optional[Dict[str, Optional[str]]]:
+        if isinstance(item, str):
+            if item.startswith("http://") or item.startswith("https://"):
+                return {
+                    "title": self._extract_domain(item),
+                    "snippet": "",
+                    "url": item,
+                    "source": self._extract_domain(item),
+                    "published_date": None,
+                }
+            return None
+
+        if not isinstance(item, dict):
+            return None
+
+        url = item.get("url") or item.get("link") or item.get("source_url") or item.get("uri") or ""
+        title = item.get("title") or item.get("name") or item.get("site_name") or ""
+        snippet = (
+            item.get("snippet")
+            or item.get("description")
+            or item.get("summary")
+            or item.get("content")
+            or ""
+        )
+        source = item.get("source") or item.get("siteName") or self._extract_domain(url) or "Perplexity"
+        published_date = (
+            item.get("published_date")
+            or item.get("date")
+            or item.get("published_at")
+            or item.get("datePublished")
+        )
+
+        if not title and url:
+            title = self._extract_domain(url)
+
+        if not (title or url or snippet):
+            return None
+
+        return {
+            "title": str(title),
+            "snippet": str(snippet),
+            "url": str(url),
+            "source": str(source),
+            "published_date": str(published_date) if published_date else None,
+        }
+
+    def _extract_citations(self, payload: Dict[str, Any]) -> List[str]:
+        citations: List[str] = []
+        raw_citations = payload.get("citations")
+        if isinstance(raw_citations, list):
+            citations.extend([str(url) for url in raw_citations if isinstance(url, str)])
+
+        choices = payload.get("choices") or []
+        if choices and isinstance(choices[0], dict):
+            message = choices[0].get("message", {})
+            nested_citations = message.get("citations")
+            if isinstance(nested_citations, list):
+                citations.extend([str(url) for url in nested_citations if isinstance(url, str)])
+
+        deduped = []
+        seen = set()
+        for url in citations:
+            if not url or url in seen:
+                continue
+            seen.add(url)
+            deduped.append(url)
+        return deduped
+
+    def _parse_error(self, response: requests.Response) -> str:
+        try:
+            if response.headers.get("content-type", "").startswith("application/json"):
+                payload = response.json()
+                error = payload.get("error")
+                if isinstance(error, dict):
+                    message = error.get("message") or error.get("type") or str(error)
+                else:
+                    message = payload.get("message") or payload.get("error") or str(payload)
+            else:
+                message = response.text[:300]
+        except Exception:
+            message = response.text[:300]
+
+        if response.status_code == 401:
+            return f"API key invalid: {message}"
+        if response.status_code == 403:
+            return f"Access denied: {message}"
+        if response.status_code == 429:
+            return f"Rate limit exceeded: {message}"
+        return f"HTTP {response.status_code}: {message}"
+
+    @staticmethod
+    def _extract_domain(url: str) -> str:
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(url)
+            return parsed.netloc.replace("www.", "") or "未知来源"
+        except Exception:
+            return "未知来源"
+
+
 class SearchService:
     """
     搜索服务
@@ -905,6 +1234,9 @@ class SearchService:
     
     def __init__(
         self,
+        perplexity_keys: Optional[List[str]] = None,
+        perplexity_base_url: str = PerplexitySearchProvider.DEFAULT_BASE_URL,
+        perplexity_model: str = PerplexitySearchProvider.DEFAULT_MODEL,
         bocha_keys: Optional[List[str]] = None,
         tavily_keys: Optional[List[str]] = None,
         brave_keys: Optional[List[str]] = None,
@@ -920,9 +1252,22 @@ class SearchService:
             brave_keys: Brave Search API Key 列表
             serpapi_keys: SerpAPI Key 列表
             news_max_age_days: 新闻最大时效（天）
+            perplexity_keys: Comma-separated Perplexity/OpenRouter API keys.
+            perplexity_base_url: Perplexity API base URL.
+            perplexity_model: Perplexity model name.
         """
         self._providers: List[BaseSearchProvider] = []
         self.news_max_age_days = max(1, news_max_age_days)
+
+        if perplexity_keys:
+            self._providers.append(
+                PerplexitySearchProvider(
+                    api_keys=perplexity_keys,
+                    base_url=perplexity_base_url,
+                    model=perplexity_model,
+                )
+            )
+            logger.info(f"已配置 Perplexity 搜索，共 {len(perplexity_keys)} 个 API Key")
 
         # 初始化搜索引擎（按优先级排序）
         # 1. Bocha 优先（中文搜索优化，AI摘要）
@@ -1521,6 +1866,9 @@ def get_search_service() -> SearchService:
         config = get_config()
         
         _search_service = SearchService(
+            perplexity_keys=config.perplexity_api_keys,
+            perplexity_base_url=config.perplexity_base_url,
+            perplexity_model=config.perplexity_model,
             bocha_keys=config.bocha_api_keys,
             tavily_keys=config.tavily_api_keys,
             brave_keys=config.brave_api_keys,

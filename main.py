@@ -617,8 +617,17 @@ def main() -> int:
             search_service = None
             analyzer = None
 
-            if config.bocha_api_keys or config.tavily_api_keys or config.brave_api_keys or config.serpapi_keys:
+            if (
+                config.perplexity_api_keys
+                or config.bocha_api_keys
+                or config.tavily_api_keys
+                or config.brave_api_keys
+                or config.serpapi_keys
+            ):
                 search_service = SearchService(
+                    perplexity_keys=config.perplexity_api_keys,
+                    perplexity_base_url=config.perplexity_base_url,
+                    perplexity_model=config.perplexity_model,
                     bocha_keys=config.bocha_api_keys,
                     tavily_keys=config.tavily_api_keys,
                     brave_keys=config.brave_api_keys,
