@@ -110,6 +110,32 @@ class TestHKDailyRouting(unittest.TestCase):
         self.assertEqual(source, "YfinanceFetcher")
         self.assertEqual(calls, ["AkshareFetcher", "YfinanceFetcher"])
 
+    def test_daily_failure_negative_cache_skips_repeated_failed_fetcher(self):
+        """
+        同一 manager 实例内，某日线数据源刚失败后应进入短期负缓存并被跳过。
+        """
+        from data_provider.base import DataFetcherManager
+
+        calls = []
+        fetchers = [
+            _StubDailyFetcher("AkshareFetcher", 1, calls, should_succeed=False),
+            _StubDailyFetcher("YfinanceFetcher", 2, calls, should_succeed=True),
+        ]
+        manager = DataFetcherManager(fetchers=fetchers)
+        manager._daily_failure_ttl = 3600.0  # 放大窗口，确保第二次调用命中负缓存
+
+        # 第一次：Akshare 失败，Yfinance 成功
+        df1, source1 = manager.get_daily_data("HK00700")
+        # 第二次：Akshare 应被负缓存跳过，直接命中 Yfinance
+        df2, source2 = manager.get_daily_data("HK03690")
+
+        self.assertFalse(df1.empty)
+        self.assertFalse(df2.empty)
+        self.assertEqual(source1, "YfinanceFetcher")
+        self.assertEqual(source2, "YfinanceFetcher")
+        # 如果负缓存生效，Akshare 仅应被调用一次（第一次）
+        self.assertEqual(calls, ["AkshareFetcher", "YfinanceFetcher", "YfinanceFetcher"])
+
 
 class TestHKRealtimeDedup(unittest.TestCase):
     def test_hk_realtime_akshare_source_deduplicated(self):

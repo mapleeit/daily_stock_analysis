@@ -35,6 +35,7 @@
 ### 修复（#patch）
 - ⚡ **港股任务链路降噪与性能优化**
   - `DataFetcherManager` 新增港股日线路由：港股仅尝试 `AkshareFetcher` / `YfinanceFetcher`，跳过 `Pytdx/Baostock/Tushare` 等无效回退链路
+  - 新增日线失败负缓存：数据源短时间连续失败后自动冷却跳过，减少重复失败回退
   - 默认数据源初始化增加可用性过滤：不可用源（如未配置 Token 的 Tushare）启动时即跳过
   - 修复港股实时行情熔断前置检查：`akshare_hk` 冷却期内直接跳过，避免重复请求
   - 港股实时行情源去重：在 `tencent/akshare_sina/akshare_em` 优先级下仅触发一次 Akshare 港股接口
